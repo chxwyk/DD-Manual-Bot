@@ -179,6 +179,22 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("email", columns)
 
+    async def test_existing_database_gets_customer_role_setting_migration(self) -> None:
+        legacy_path = Path(self.temp_dir.name) / "legacy-settings.db"
+        legacy_schema = SCHEMA.replace("    customer_ping_role_id INTEGER,\n", "")
+        with sqlite3.connect(legacy_path) as connection:
+            connection.executescript(legacy_schema)
+
+        legacy_db = Database(legacy_path)
+        await legacy_db.initialize()
+        with sqlite3.connect(legacy_path) as connection:
+            columns = {
+                row[1]
+                for row in connection.execute("PRAGMA table_info(guild_settings)").fetchall()
+            }
+
+        self.assertIn("customer_ping_role_id", columns)
+
     async def test_settings_payments_and_restaurant_overrides(self) -> None:
         await self.db.upsert_guild_settings(
             guild_id=1,
@@ -187,11 +203,13 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
             staff_role_id=3,
             log_channel_id=4,
             banner_url=None,
+            customer_ping_role_id=5,
         )
         settings = await self.db.get_guild_settings(1)
         self.assertIsNotNone(settings)
         assert settings is not None
         self.assertEqual(settings.brand_name, "Test Direct")
+        self.assertEqual(settings.customer_ping_role_id, 5)
 
         self.assertTrue(await self.db.get_store_open(1))
         await self.db.set_store_open(1, False)

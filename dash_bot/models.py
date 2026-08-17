@@ -11,6 +11,7 @@ class GuildSettings:
     staff_role_id: int
     log_channel_id: int
     banner_url: str | None
+    customer_ping_role_id: int | None = None
     panel_channel_id: int | None = None
     panel_message_id: int | None = None
 

@@ -14,7 +14,7 @@ DoorDash may hide live cart data behind a login or JavaScript. That never blocks
 
 ## Main commands
 
-- `/setup` — configure storefront channel, ticket category, Manual Chef role, transcript channel, branding, and optional banner URL
+- `/setup` — open a private dropdown/button menu for the existing storefront channel, ticket category, Manual Chef role, transcript channel, and customer ping role; saved choices preload the next time `/setup` is opened
 - `/panel` — refresh or repost the storefront
 - `/store open` / `/store close` — control new orders; only opening pings customers
 - `/claim` — claim and lock a ticket so other chefs become read-only
@@ -32,14 +32,14 @@ DoorDash may hide live cart data behind a login or JavaScript. That never blocks
 ```env
 DISCORD_TOKEN=your_new_bot_token
 DEV_GUILD_ID=your_server_id
-CUSTOMER_PING_ROLE_ID=optional_customer_role_id
+CUSTOMER_PING_ROLE_ID=optional_legacy_fallback_role_id
 DATABASE_PATH=/app/data/doordash_manual.db
 TRANSCRIPT_DIR=/app/data/transcripts
 OWNER_COMMISSION_CENTS=175
 LOG_LEVEL=INFO
 ```
 
-Attach a Railway volume at `/app/data` so tickets, commission records, and transcripts survive redeploys.
+The customer role is normally selected and saved through `/setup`; the Railway role variable is only a fallback for an older database. Attach a Railway volume at `/app/data` so settings, tickets, commission records, and transcripts survive redeploys.
 
 ## Required Discord permissions
 
@@ -56,4 +56,4 @@ The bot role must be above the Manual Chef role so claim locks and force reassig
 
 ## GitHub and deployment
 
-Upload the ZIP contents to a new GitHub repository. Do not upload a real `.env` or bot token. Connect the repository to Railway, add the variables above, mount `/app/data`, and wait for the log line showing the bot is ready. Then run `/setup` once in Discord.
+Upload the ZIP contents to a new GitHub repository. Do not upload a real `.env` or bot token. Connect the repository to Railway, add the variables above, mount `/app/data`, and wait for the log line showing the bot is ready. Then run `/setup`, choose the existing channels and roles from the menus, and press **Save Setup**. The included animated $30 storefront banner is applied automatically.

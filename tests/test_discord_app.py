@@ -4,6 +4,8 @@ from unittest.mock import Mock
 import discord
 
 from dash_bot.discord_app import (
+    DashCommands,
+    SetupSelections,
     _claimed_ticket_overwrites,
     _order_summary_embed,
     _parse_contact_details,
@@ -81,6 +83,20 @@ class ClaimedTicketPermissionTests(unittest.TestCase):
         self.assertTrue(claimant_overwrite.use_external_apps)
         self.assertTrue(claimant_overwrite.add_reactions)
         self.assertTrue(claimant_overwrite.attach_files)
+
+
+class InteractiveSetupTests(unittest.TestCase):
+    def test_setup_slash_command_has_no_typed_options(self) -> None:
+        self.assertEqual(DashCommands.setup.parameters, [])
+
+    def test_core_selection_requires_every_dropdown(self) -> None:
+        selections = SetupSelections()
+        self.assertFalse(selections.core_complete())
+        selections.panel_channel_id = 1
+        selections.ticket_category_id = 2
+        selections.staff_role_id = 3
+        selections.transcript_channel_id = 4
+        self.assertTrue(selections.core_complete())
 
 
 if __name__ == "__main__":

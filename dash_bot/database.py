@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
     staff_role_id INTEGER NOT NULL,
     log_channel_id INTEGER NOT NULL,
     banner_url TEXT,
+    customer_ping_role_id INTEGER,
     panel_channel_id INTEGER,
     panel_message_id INTEGER,
     created_at TEXT NOT NULL,
@@ -136,6 +137,7 @@ def _settings_from_row(row: sqlite3.Row | None) -> GuildSettings | None:
         staff_role_id=row["staff_role_id"],
         log_channel_id=row["log_channel_id"],
         banner_url=row["banner_url"],
+        customer_ping_role_id=row["customer_ping_role_id"],
         panel_channel_id=row["panel_channel_id"],
         panel_message_id=row["panel_message_id"],
     )
@@ -205,6 +207,16 @@ class Database:
                     connection.execute(
                         "ALTER TABLE orders ADD COLUMN group_order_url TEXT NOT NULL DEFAULT ''"
                     )
+                settings_columns = {
+                    str(row["name"])
+                    for row in connection.execute(
+                        "PRAGMA table_info(guild_settings)"
+                    ).fetchall()
+                }
+                if "customer_ping_role_id" not in settings_columns:
+                    connection.execute(
+                        "ALTER TABLE guild_settings ADD COLUMN customer_ping_role_id INTEGER"
+                    )
                 commission_columns = {
                     str(row["name"])
                     for row in connection.execute(
@@ -240,6 +252,7 @@ class Database:
         staff_role_id: int,
         log_channel_id: int,
         banner_url: str | None,
+        customer_ping_role_id: int | None = None,
     ) -> None:
         now = _now()
 
@@ -249,14 +262,16 @@ class Database:
                     """
                     INSERT INTO guild_settings (
                         guild_id, brand_name, ticket_category_id, staff_role_id,
-                        log_channel_id, banner_url, created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        log_channel_id, banner_url, customer_ping_role_id,
+                        created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(guild_id) DO UPDATE SET
                         brand_name = excluded.brand_name,
                         ticket_category_id = excluded.ticket_category_id,
                         staff_role_id = excluded.staff_role_id,
                         log_channel_id = excluded.log_channel_id,
                         banner_url = excluded.banner_url,
+                        customer_ping_role_id = excluded.customer_ping_role_id,
                         updated_at = excluded.updated_at
                     """,
                     (
@@ -266,6 +281,7 @@ class Database:
                         staff_role_id,
                         log_channel_id,
                         banner_url,
+                        customer_ping_role_id,
                         now,
                         now,
                     ),
