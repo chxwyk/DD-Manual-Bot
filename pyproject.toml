@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bobs-doordash-manual-bot"
+version = "1.0.0"
+description = "Private DoorDash group-cart tickets with staff payments and transcripts"
+requires-python = ">=3.12"
+dependencies = ["discord.py==2.7.1", "aiohttp>=3.9,<4"]
+
+[project.scripts]
+bobs-doordash-manual = "dash_bot.discord_app:run"
+
+[tool.setuptools.packages.find]
+include = ["dash_bot*"]
+
+[tool.setuptools.package-data]
+dash_bot = ["assets/*.png", "assets/*.gif"]
+
+[tool.ruff]
+line-length = 96
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
