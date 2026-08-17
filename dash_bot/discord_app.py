@@ -45,13 +45,13 @@ KNOWN_PAYMENT_METHODS = (
     "Stripe Payment Link",
     "Cryptocurrency",
 )
-DEFAULT_BANNER_FILENAME = "bobs-burger-doordash-manual.gif"
+DEFAULT_BANNER_FILENAME = "bobs-burger-doordash-manual-30.gif"
 DEFAULT_BANNER_PATH = Path(__file__).with_name("assets") / DEFAULT_BANNER_FILENAME
 BRAND_AVATAR_FILENAME = "bobs-burger-doordash-manual-pfp.png"
 BRAND_AVATAR_PATH = Path(__file__).with_name("assets") / BRAND_AVATAR_FILENAME
 EMAIL_PATTERN = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 DONE_CLOSE_DELAY_SECONDS = 30 * 60
-MINIMUM_SUBTOTAL_CENTS = 2_500
+MINIMUM_SUBTOTAL_CENTS = 3_000
 
 
 def _safe_channel_fragment(value: str) -> str:
@@ -278,7 +278,7 @@ def _panel_embed(settings: GuildSettings, orders_open: bool) -> discord.Embed:
             "the order inside a private ticket.\n\n"
             "Choose **Place Order**, complete the quick form, and keep the group cart "
             "available for your chef.\n\n"
-            "**Minimum subtotal: $25 before taxes and fees.**"
+            "**Minimum subtotal: $30 before taxes and fees.**"
         ),
         color=SUCCESS_COLOR if orders_open else ERROR_COLOR,
     )
@@ -290,7 +290,7 @@ def _panel_embed(settings: GuildSettings, orders_open: bool) -> discord.Embed:
     embed.add_field(
         name="🧾 Subtotal",
         value=(
-            "Enter at least **$25 before taxes and fees**. The bot also tries to "
+            "Enter at least **$30 before taxes and fees**. The bot also tries to "
             "read any subtotal publicly exposed by the DoorDash link."
         ),
         inline=True,
@@ -331,7 +331,7 @@ def _how_to_order_embed() -> discord.Embed:
     embed.add_field(
         name="2 — Check the subtotal",
         value=(
-            "Your cart subtotal must be **$25 or more before taxes and fees**. "
+            "Your cart subtotal must be **$30 or more before taxes and fees**. "
             "Do not include taxes, delivery fees, or tips in this field."
         ),
         inline=False,
@@ -488,7 +488,7 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
         )
         self.subtotal = discord.ui.TextInput(
             label="Cart subtotal before taxes and fees",
-            placeholder="$25.00 minimum — subtotal only",
+            placeholder="$30.00 minimum — subtotal only",
             required=True,
             min_length=1,
             max_length=20,
@@ -548,7 +548,7 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
         if subtotal_cents < MINIMUM_SUBTOTAL_CENTS:
             await _ephemeral(
                 interaction,
-                "The DoorDash cart subtotal must be **$25.00 or more before taxes and fees**.",
+                "The DoorDash cart subtotal must be **$30.00 or more before taxes and fees**.",
             )
             return
 
@@ -1339,7 +1339,7 @@ async def _announce_store_open(
             content=(
                 f"{role.mention} 🟢 **BOB'S BURGERS DOORDASH MANUAL IS OPEN!**\n"
                 "DoorDash Manual orders are available. Your cart must have a "
-                "**$25+ subtotal before taxes and fees**. Use **Place Order** above "
+                "**$30+ subtotal before taxes and fees**. Use **Place Order** above "
                 "to open a private ticket."
             ),
             allowed_mentions=discord.AllowedMentions(
@@ -1691,7 +1691,7 @@ class DashCommands(commands.Cog):
         if total_cents < MINIMUM_SUBTOTAL_CENTS:
             await _ephemeral(
                 interaction,
-                "The verified DoorDash subtotal must be at least **$25.00**.",
+                "The verified DoorDash subtotal must be at least **$30.00**.",
             )
             return
 

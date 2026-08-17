@@ -4,7 +4,7 @@ import re
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 MONEY_PATTERN = re.compile(r"^\$?\s*(\d{1,7}(?:,\d{3})*|\d+)(?:\.(\d{1,2}))?\s*$")
-MIN_CART_TOTAL_CENTS = 3_000  # $30.00 after taxes and fees
+MIN_CART_TOTAL_CENTS = 3_000  # $30.00 subtotal before taxes and fees
 MAX_CART_TOTAL_CENTS = 500_000  # $5,000.00
 DEFAULT_DISCOUNT_BASIS_POINTS = 5_000  # 50.00%
 
@@ -30,9 +30,7 @@ def parse_money(value: str) -> int:
         raise MoneyError("Enter a valid dollar amount.") from exc
 
     if cents < MIN_CART_TOTAL_CENTS:
-        raise MoneyError(
-            "The minimum cart total is $30.00 after taxes and fees, not the subtotal."
-        )
+        raise MoneyError("The minimum DoorDash subtotal is $30.00 before taxes and fees.")
     if cents > MAX_CART_TOTAL_CENTS:
         raise MoneyError("The final total cannot be greater than $5,000.00.")
     return cents
