@@ -51,7 +51,9 @@ class ContactDetailsTests(unittest.TestCase):
         fields = {field.name: field.value for field in embed.fields}
         self.assertEqual(fields["Order Type"], "🛍️ **PICKUP**")
         self.assertEqual(fields["Pickup Instructions"], "123 Main St")
-        self.assertEqual(fields["Estimated Customer Price (50% off subtotal)"], "**$21.39**")
+        self.assertEqual(
+            fields["Estimated Customer Price (50% off final total)"], "**$21.39**"
+        )
         self.assertEqual(fields["Notes"], "Pickup after 6 PM")
 
 
@@ -86,6 +88,12 @@ class ClaimedTicketPermissionTests(unittest.TestCase):
 
 
 class InteractiveSetupTests(unittest.TestCase):
+    def test_manual_storefront_commands_have_a_unique_group(self) -> None:
+        self.assertEqual(DashCommands.manual.name, "manual")
+        self.assertEqual(
+            {command.name for command in DashCommands.manual.commands}, {"open", "close"}
+        )
+
     def test_setup_slash_command_has_no_typed_options(self) -> None:
         self.assertEqual(DashCommands.setup.parameters, [])
 

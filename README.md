@@ -5,21 +5,21 @@ A Railway-ready Discord bot for private DoorDash group-cart tickets.
 ## Customer flow
 
 1. Customer presses **Place Order**.
-2. Customer submits an HTTPS DoorDash group-cart link, a **$30+ subtotal**, delivery address, optional Dasher note, and optionally types `PICKUP`.
+2. Customer submits an HTTPS DoorDash group-cart link, a **$30+ final total after taxes and fees**, delivery address, optional Dasher note, and optionally types `PICKUP`.
 3. The bot safely checks public DoorDash metadata when available, creates a private ticket, pings the configured Manual Chef role, and posts a clickable group-cart link.
 4. **PICKUP** or **DELIVERY** appears in large text at the top of the chef summary.
 5. The chef claims the ticket, sends payment, and posts order updates.
 
-DoorDash may hide live cart data behind a login or JavaScript. That never blocks ticket creation: the customer-entered subtotal remains visible and the chef gets a one-click cart link. The bot never asks for or stores DoorDash credentials.
+DoorDash may hide live cart data behind a login or JavaScript. That never blocks ticket creation: the customer-entered final total remains visible and the chef gets a one-click cart link. Any publicly detected subtotal is shown only as a pre-tax reference. The bot never asks for or stores DoorDash credentials.
 
 ## Main commands
 
 - `/setup` — open a private dropdown/button menu for the existing storefront channel, ticket category, Manual Chef role, transcript channel, and customer ping role; saved choices preload the next time `/setup` is opened
 - `/panel` — refresh or repost the storefront
-- `/store open` / `/store close` — control new orders; only opening pings customers
+- `/manual open` / `/manual close` — control DoorDash Manual orders without conflicting with the other bots; only opening pings customers
 - `/claim` — claim and lock a ticket so other chefs become read-only
 - `/force_claim staff:@Chef` — administrator reassignment
-- `/pay [final_total]` — verify the subtotal and send the invoice
+- `/pay [final_total]` — verify the final total after taxes and fees and send the invoice
 - `/paid` — confirm customer payment
 - `/ordered [details]` — announce that the DoorDash order was placed
 - `/done` — record **$1.75 owed by the chef who claimed the ticket**, then keep the ticket open for 30 minutes before transcript/archive

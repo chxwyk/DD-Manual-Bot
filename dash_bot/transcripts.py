@@ -104,7 +104,7 @@ def render_transcript_html(
     <div class="summary">
       Order #{order.id:06d} • {safe_restaurant} • {safe_status} •
       {html.escape(order.fulfillment.title())} •
-      Cart {format_cents(order.submitted_total_cents)} •
+      Final total {format_cents(order.submitted_total_cents)} •
       Customer price {format_cents(order.customer_price_cents)}
     </div>
     <div class="contact">

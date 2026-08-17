@@ -45,13 +45,13 @@ KNOWN_PAYMENT_METHODS = (
     "Stripe Payment Link",
     "Cryptocurrency",
 )
-DEFAULT_BANNER_FILENAME = "bobs-burger-doordash-manual-30.gif"
+DEFAULT_BANNER_FILENAME = "bobs-burger-doordash-manual-30-total.gif"
 DEFAULT_BANNER_PATH = Path(__file__).with_name("assets") / DEFAULT_BANNER_FILENAME
 BRAND_AVATAR_FILENAME = "bobs-burger-doordash-manual-pfp.png"
 BRAND_AVATAR_PATH = Path(__file__).with_name("assets") / BRAND_AVATAR_FILENAME
 EMAIL_PATTERN = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)
 DONE_CLOSE_DELAY_SECONDS = 30 * 60
-MINIMUM_SUBTOTAL_CENTS = 3_000
+MINIMUM_TOTAL_CENTS = 3_000
 
 
 def _safe_channel_fragment(value: str) -> str:
@@ -278,7 +278,7 @@ def _panel_embed(settings: GuildSettings, orders_open: bool) -> discord.Embed:
             "the order inside a private ticket.\n\n"
             "Choose **Place Order**, complete the quick form, and keep the group cart "
             "available for your chef.\n\n"
-            "**Minimum subtotal: $30 before taxes and fees.**"
+            "**Minimum final total: $30 after taxes and fees.**"
         ),
         color=SUCCESS_COLOR if orders_open else ERROR_COLOR,
     )
@@ -288,10 +288,10 @@ def _panel_embed(settings: GuildSettings, orders_open: bool) -> discord.Embed:
         inline=True,
     )
     embed.add_field(
-        name="🧾 Subtotal",
+        name="🧾 Final Total",
         value=(
-            "Enter at least **$30 before taxes and fees**. The bot also tries to "
-            "read any subtotal publicly exposed by the DoorDash link."
+            "Enter at least **$30 after taxes and fees** from the DoorDash checkout "
+            "screen."
         ),
         inline=True,
     )
@@ -329,10 +329,10 @@ def _how_to_order_embed() -> discord.Embed:
         inline=False,
     )
     embed.add_field(
-        name="2 — Check the subtotal",
+        name="2 — Check the final total",
         value=(
-            "Your cart subtotal must be **$30 or more before taxes and fees**. "
-            "Do not include taxes, delivery fees, or tips in this field."
+            "Your DoorDash total must be **$30 or more after taxes and fees**. "
+            "Enter the final amount shown at checkout."
         ),
         inline=False,
     )
@@ -381,13 +381,13 @@ def _order_summary_embed(order: Order) -> discord.Embed:
         inline=True,
     )
     embed.add_field(
-        name="Customer-Entered Subtotal",
+        name="Customer-Entered Final Total",
         value=format_cents(order.submitted_total_cents),
         inline=True,
     )
     embed.add_field(name="Status", value="Waiting for staff", inline=True)
     embed.add_field(
-        name="Estimated Customer Price (50% off subtotal)",
+        name="Estimated Customer Price (50% off final total)",
         value=f"**{format_cents(order.customer_price_cents)}**",
         inline=True,
     )
@@ -403,7 +403,7 @@ def _order_summary_embed(order: Order) -> discord.Embed:
     embed.add_field(name="Customer", value=f"<@{order.customer_id}>", inline=False)
     if order.notes:
         embed.add_field(name="Notes", value=order.notes[:1024], inline=False)
-    embed.set_footer(text="Subtotal is customer-entered unless a public DoorDash value is shown.")
+    embed.set_footer(text="The final total is customer-entered and must include taxes and fees.")
     return embed
 
 
@@ -486,9 +486,9 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
             min_length=12,
             max_length=500,
         )
-        self.subtotal = discord.ui.TextInput(
-            label="Cart subtotal before taxes and fees",
-            placeholder="$30.00 minimum — subtotal only",
+        self.final_total = discord.ui.TextInput(
+            label="Final total after taxes and fees",
+            placeholder="$30.00 minimum — checkout total",
             required=True,
             min_length=1,
             max_length=20,
@@ -515,7 +515,7 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
             max_length=20,
         )
         self.add_item(self.group_link)
-        self.add_item(self.subtotal)
+        self.add_item(self.final_total)
         self.add_item(self.delivery_address)
         self.add_item(self.dasher_note)
         self.add_item(self.pickup_code)
@@ -541,14 +541,14 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
             await _ephemeral(interaction, str(exc))
             return
         try:
-            subtotal_cents = parse_money(str(self.subtotal))
+            final_total_cents = parse_money(str(self.final_total))
         except MoneyError as exc:
             await _ephemeral(interaction, str(exc))
             return
-        if subtotal_cents < MINIMUM_SUBTOTAL_CENTS:
+        if final_total_cents < MINIMUM_TOTAL_CENTS:
             await _ephemeral(
                 interaction,
-                "The DoorDash cart subtotal must be **$30.00 or more before taxes and fees**.",
+                "The final DoorDash total must be **$30.00 or more after taxes and fees**.",
             )
             return
 
@@ -606,7 +606,7 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
                 phone="Not requested",
                 email="",
                 notes=str(self.dasher_note).strip() or None,
-                submitted_total_cents=subtotal_cents,
+                submitted_total_cents=final_total_cents,
             )
         except ActiveOrderExistsError:
             await interaction.followup.send(
@@ -695,21 +695,19 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
             title=f"{('🛍️ PICKUP' if fulfillment == 'pickup' else '🚗 DELIVERY')} — CHEF START HERE",
             description=(
                 f"### [OPEN THE CLICKABLE GROUP CART]({order.group_order_url})\n"
-                f"**Customer-entered subtotal:** {format_cents(subtotal_cents)}\n"
+                f"**Customer-entered final total:** {format_cents(final_total_cents)}\n"
                 f"**Store detected:** {store_name}\n"
                 f"**Address / pickup:** {location}"
             ),
             color=SUCCESS_COLOR if fulfillment == "pickup" else EMBED_COLOR,
         )
         if detected_subtotal_cents is not None:
-            match_text = (
-                "✅ Matches the customer's entry"
-                if detected_subtotal_cents == subtotal_cents
-                else "⚠️ Does not match the customer's entry — verify the live cart"
-            )
             chef_embed.add_field(
-                name="Publicly Detected Subtotal",
-                value=f"{format_cents(detected_subtotal_cents)} • {match_text}",
+                name="Publicly Detected Subtotal (Reference Only)",
+                value=(
+                    f"{format_cents(detected_subtotal_cents)} • This is before taxes and fees; "
+                    "compare it with the live checkout manually."
+                ),
                 inline=False,
             )
         elif inspection_note:
@@ -1338,7 +1336,7 @@ async def _announce_store_open(
             content=(
                 f"{role.mention} 🟢 **BOB'S BURGERS DOORDASH MANUAL IS OPEN!**\n"
                 "DoorDash Manual orders are available. Your cart must have a "
-                "**$30+ subtotal before taxes and fees**. Use **Place Order** above "
+                "**$30+ final total after taxes and fees**. Use **Place Order** above "
                 "to open a private ticket."
             ),
             allowed_mentions=discord.AllowedMentions(
@@ -1467,7 +1465,7 @@ def _setup_summary_embed(
     )
     embed.add_field(
         name="Storefront Banner",
-        value="Included animated **$30 minimum subtotal** banner",
+        value="Included **$30 minimum final-total** banner",
         inline=False,
     )
     embed.set_footer(text="Run /setup again whenever you want to change these settings.")
@@ -1790,7 +1788,7 @@ class SetupFinishView(_SetupOwnedView):
                     f"Manual Chef: {staff_role.mention}\n"
                     f"Transcripts: {transcript_channel.mention}\n"
                     f"Customer ping: {customer_role.mention}\n\n"
-                    "The animated $30 storefront banner was applied automatically."
+                    "The $30 final-total storefront banner was applied automatically."
                 ),
                 color=SUCCESS_COLOR,
             ),
@@ -1805,7 +1803,9 @@ class SetupFinishView(_SetupOwnedView):
 
 
 class DashCommands(commands.Cog):
-    store = app_commands.Group(name="store", description="Open or close new orders")
+    manual = app_commands.Group(
+        name="manual", description="Control the DoorDash Manual storefront"
+    )
     payments = app_commands.Group(
         name="payments", description="Configure your staff payment methods"
     )
@@ -1916,12 +1916,12 @@ class DashCommands(commands.Cog):
             status_message += "\nThe store was already open, so no new customer ping was sent."
         await interaction.followup.send(status_message, ephemeral=True)
 
-    @store.command(name="open", description="Open the storefront for new order tickets")
+    @manual.command(name="open", description="Open DoorDash Manual for new order tickets")
     @app_commands.guild_only()
     async def store_open(self, interaction: discord.Interaction) -> None:
         await self._set_store_status(interaction, orders_open=True)
 
-    @store.command(name="close", description="Close the storefront to new order tickets")
+    @manual.command(name="close", description="Close DoorDash Manual to new order tickets")
     @app_commands.guild_only()
     async def store_close(self, interaction: discord.Interaction) -> None:
         await self._set_store_status(interaction, orders_open=False)
@@ -2051,11 +2051,11 @@ class DashCommands(commands.Cog):
         )
 
     @app_commands.command(
-        name="pay", description="Verify the subtotal and send the customer invoice"
+        name="pay", description="Verify the final total and send the customer invoice"
     )
     @app_commands.guild_only()
     @app_commands.describe(
-        final_total="Optional corrected DoorDash subtotal before taxes and fees"
+        final_total="Optional corrected DoorDash total after taxes and fees"
     )
     async def pay(
         self, interaction: discord.Interaction, final_total: str | None = None
@@ -2083,10 +2083,10 @@ class DashCommands(commands.Cog):
                 return
         else:
             total_cents = order.submitted_total_cents
-        if total_cents < MINIMUM_SUBTOTAL_CENTS:
+        if total_cents < MINIMUM_TOTAL_CENTS:
             await _ephemeral(
                 interaction,
-                "The verified DoorDash subtotal must be at least **$30.00**.",
+                "The verified DoorDash total must be at least **$30.00 after taxes and fees**.",
             )
             return
 
@@ -2121,7 +2121,7 @@ class DashCommands(commands.Cog):
             color=EMBED_COLOR,
         )
         invoice.add_field(
-            name="Verified DoorDash Subtotal",
+            name="Verified DoorDash Final Total",
             value=format_cents(order.submitted_total_cents),
             inline=True,
         )
