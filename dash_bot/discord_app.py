@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, replace
 from datetime import timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlparse
 
 import discord
@@ -284,7 +284,7 @@ def _panel_embed(settings: GuildSettings, orders_open: bool) -> discord.Embed:
     )
     embed.add_field(
         name="🚗 Delivery or Pickup",
-        value="For pickup, type **PICKUP** in the form exactly as shown.",
+        value="Press **Place Order**, then choose **🛍️ Pickup** or **🚗 Delivery**.",
         inline=True,
     )
     embed.add_field(
@@ -339,8 +339,8 @@ def _how_to_order_embed() -> discord.Embed:
     embed.add_field(
         name="3 — Open your private ticket",
         value=(
-            "Press **Place Order**, paste the group link and address, and add any "
-            "Dasher note. For pickup, type **PICKUP** in all caps."
+            "Press **Place Order**, choose **Pickup** or **Delivery**, then complete "
+            "the form made for that order type."
         ),
         inline=False,
     )
@@ -393,7 +393,7 @@ def _order_summary_embed(order: Order) -> discord.Embed:
     )
     embed.add_field(
         name=(
-            "Pickup Instructions"
+            "Pickup Store Address"
             if order.fulfillment == "pickup"
             else "Full Delivery Address"
         ),
@@ -417,6 +417,38 @@ class OwnedView(discord.ui.View):
             await _ephemeral(interaction, "This menu belongs to another customer.")
             return False
         return True
+
+
+class FulfillmentChoiceView(OwnedView):
+    def __init__(self, bot: DashManualBot, owner_id: int) -> None:
+        super().__init__(owner_id)
+        self.bot = bot
+
+    @discord.ui.button(
+        label="Pickup",
+        emoji="🛍️",
+        style=discord.ButtonStyle.success,
+        custom_id="dashmanual:v2:choose_pickup",
+    )
+    async def pickup(
+        self, interaction: discord.Interaction, _: discord.ui.Button
+    ) -> None:
+        await interaction.response.send_modal(
+            DashOrderModal(self.bot, fulfillment="pickup")
+        )
+
+    @discord.ui.button(
+        label="Delivery",
+        emoji="🚗",
+        style=discord.ButtonStyle.primary,
+        custom_id="dashmanual:v2:choose_delivery",
+    )
+    async def delivery(
+        self, interaction: discord.Interaction, _: discord.ui.Button
+    ) -> None:
+        await interaction.response.send_modal(
+            DashOrderModal(self.bot, fulfillment="delivery")
+        )
 
 
 class MainPanelView(discord.ui.View):
@@ -461,7 +493,20 @@ class MainPanelView(discord.ui.View):
             )
             return
 
-        await interaction.response.send_modal(DashOrderModal(self.bot))
+        await _ephemeral(
+            interaction,
+            embed=discord.Embed(
+                title="Choose Pickup or Delivery",
+                description=(
+                    "🛍️ **Pickup** — you will enter the DoorDash group link, pickup "
+                    "store address, and final total.\n\n"
+                    "🚗 **Delivery** — you will enter the DoorDash group link, final "
+                    "total, delivery address, and an optional Dasher note."
+                ),
+                color=EMBED_COLOR,
+            ),
+            view=FulfillmentChoiceView(self.bot, interaction.user.id),
+        )
 
     @discord.ui.button(
         label="How It Works",
@@ -475,10 +520,14 @@ class MainPanelView(discord.ui.View):
         await _ephemeral(interaction, embed=_how_to_order_embed())
 
 
-class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
-    def __init__(self, bot: DashManualBot) -> None:
-        super().__init__()
+class DashOrderModal(discord.ui.Modal):
+    def __init__(
+        self, bot: DashManualBot, *, fulfillment: Literal["pickup", "delivery"]
+    ) -> None:
+        title = "🛍️ Start Pickup Order" if fulfillment == "pickup" else "🚗 Start Delivery Order"
+        super().__init__(title=title)
         self.bot = bot
+        self.fulfillment = fulfillment
         self.group_link = discord.ui.TextInput(
             label="DoorDash group cart link",
             placeholder="https://drd.sh/cart/...",
@@ -493,32 +542,41 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
             min_length=1,
             max_length=20,
         )
-        self.delivery_address = discord.ui.TextInput(
-            label="Delivery address (ignored for pickup)",
-            placeholder="Street, apt/unit, City, State, ZIP",
+        self.location = discord.ui.TextInput(
+            label=(
+                "Pickup store address"
+                if fulfillment == "pickup"
+                else "Full delivery address"
+            ),
+            placeholder=(
+                "Restaurant street, City, State, ZIP"
+                if fulfillment == "pickup"
+                else "Street, apt/unit, City, State, ZIP"
+            ),
             required=True,
             min_length=3,
             max_length=350,
             style=discord.TextStyle.paragraph,
         )
-        self.dasher_note = discord.ui.TextInput(
-            label="Note for the Dasher (optional)",
-            placeholder="Gate code, leave at side door, hotel room, etc.",
-            required=False,
-            max_length=500,
-            style=discord.TextStyle.paragraph,
-        )
-        self.pickup_code = discord.ui.TextInput(
-            label="Pickup instead of delivery?",
-            placeholder="Type PICKUP for pickup — leave blank for delivery",
-            required=False,
-            max_length=20,
-        )
+        self.dasher_note: discord.ui.TextInput | None = None
+        if fulfillment == "delivery":
+            self.dasher_note = discord.ui.TextInput(
+                label="Note for the Dasher (optional)",
+                placeholder="Gate code, leave at side door, hotel room, etc.",
+                required=False,
+                max_length=500,
+                style=discord.TextStyle.paragraph,
+            )
+
         self.add_item(self.group_link)
-        self.add_item(self.final_total)
-        self.add_item(self.delivery_address)
-        self.add_item(self.dasher_note)
-        self.add_item(self.pickup_code)
+        if fulfillment == "pickup":
+            self.add_item(self.location)
+            self.add_item(self.final_total)
+        else:
+            self.add_item(self.final_total)
+            self.add_item(self.location)
+            if self.dasher_note is not None:
+                self.add_item(self.dasher_note)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         settings = await _configured_settings(self.bot, interaction)
@@ -552,18 +610,12 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
             )
             return
 
-        pickup_value = str(self.pickup_code).strip()
-        if pickup_value and pickup_value != "PICKUP":
-            await _ephemeral(
-                interaction,
-                "For pickup, type **PICKUP** in all caps. Otherwise leave that field blank.",
-            )
-            return
-        fulfillment = "pickup" if pickup_value == "PICKUP" else "delivery"
-        location = (
-            "PICKUP — open the DoorDash group cart to confirm the restaurant location"
-            if fulfillment == "pickup"
-            else str(self.delivery_address).strip()
+        fulfillment = self.fulfillment
+        location = str(self.location).strip()
+        notes = (
+            str(self.dasher_note).strip() or None
+            if self.dasher_note is not None
+            else None
         )
 
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -605,7 +657,7 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
                 contact_name=interaction.user.display_name,
                 phone="Not requested",
                 email="",
-                notes=str(self.dasher_note).strip() or None,
+                notes=notes,
                 submitted_total_cents=final_total_cents,
             )
         except ActiveOrderExistsError:
@@ -683,21 +735,28 @@ class DashOrderModal(discord.ui.Modal, title="🛵 Start Your DoorDash Order"):
             )
             return
 
+        fulfillment_emoji = "🛍️" if fulfillment == "pickup" else "🚗"
         await channel.send(
-            content=f"{interaction.user.mention} {staff_role.mention}",
+            content=(
+                f"{interaction.user.mention} {staff_role.mention} — "
+                f"{fulfillment_emoji} **{fulfillment.upper()} ORDER**"
+            ),
             embed=_order_summary_embed(order),
             view=TicketControlsView(self.bot),
             allowed_mentions=discord.AllowedMentions(
                 users=[interaction.user], roles=[staff_role], everyone=False
             ),
         )
+        location_label = (
+            "Pickup store address" if fulfillment == "pickup" else "Delivery address"
+        )
         chef_embed = discord.Embed(
-            title=f"{('🛍️ PICKUP' if fulfillment == 'pickup' else '🚗 DELIVERY')} — CHEF START HERE",
+            title=f"{fulfillment_emoji} {fulfillment.upper()} — CHEF START HERE",
             description=(
                 f"### [OPEN THE CLICKABLE GROUP CART]({order.group_order_url})\n"
                 f"**Customer-entered final total:** {format_cents(final_total_cents)}\n"
                 f"**Store detected:** {store_name}\n"
-                f"**Address / pickup:** {location}"
+                f"**{location_label}:** {location}"
             ),
             color=SUCCESS_COLOR if fulfillment == "pickup" else EMBED_COLOR,
         )

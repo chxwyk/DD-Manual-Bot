@@ -5,6 +5,8 @@ import discord
 
 from dash_bot.discord_app import (
     DashCommands,
+    DashOrderModal,
+    FulfillmentChoiceView,
     SetupSelections,
     _claimed_ticket_overwrites,
     _order_summary_embed,
@@ -50,7 +52,7 @@ class ContactDetailsTests(unittest.TestCase):
         embed = _order_summary_embed(order)
         fields = {field.name: field.value for field in embed.fields}
         self.assertEqual(fields["Order Type"], "🛍️ **PICKUP**")
-        self.assertEqual(fields["Pickup Instructions"], "123 Main St")
+        self.assertEqual(fields["Pickup Store Address"], "123 Main St")
         self.assertEqual(
             fields["Estimated Customer Price (50% off final total)"], "**$21.39**"
         )
@@ -85,6 +87,40 @@ class ClaimedTicketPermissionTests(unittest.TestCase):
         self.assertTrue(claimant_overwrite.use_external_apps)
         self.assertTrue(claimant_overwrite.add_reactions)
         self.assertTrue(claimant_overwrite.attach_files)
+
+
+class OrderFlowUiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_fulfillment_choice_has_pickup_and_delivery_buttons(self) -> None:
+        view = FulfillmentChoiceView(Mock(), owner_id=123)
+        buttons = {item.label: item for item in view.children}
+
+        self.assertEqual(set(buttons), {"Pickup", "Delivery"})
+        self.assertEqual(str(buttons["Pickup"].emoji), "🛍️")
+        self.assertEqual(str(buttons["Delivery"].emoji), "🚗")
+
+    async def test_pickup_modal_only_requests_pickup_fields(self) -> None:
+        modal = DashOrderModal(Mock(), fulfillment="pickup")
+        self.assertEqual(
+            [item.label for item in modal.children],
+            [
+                "DoorDash group cart link",
+                "Pickup store address",
+                "Final total after taxes and fees",
+            ],
+        )
+
+    async def test_delivery_modal_requests_delivery_fields_and_optional_note(self) -> None:
+        modal = DashOrderModal(Mock(), fulfillment="delivery")
+        self.assertEqual(
+            [item.label for item in modal.children],
+            [
+                "DoorDash group cart link",
+                "Final total after taxes and fees",
+                "Full delivery address",
+                "Note for the Dasher (optional)",
+            ],
+        )
+        self.assertFalse(modal.children[-1].required)
 
 
 class InteractiveSetupTests(unittest.TestCase):

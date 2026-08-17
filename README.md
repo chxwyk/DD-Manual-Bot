@@ -4,11 +4,12 @@ A Railway-ready Discord bot for private DoorDash group-cart tickets.
 
 ## Customer flow
 
-1. Customer presses **Place Order**.
-2. Customer submits an HTTPS DoorDash group-cart link, a **$30+ final total after taxes and fees**, delivery address, optional Dasher note, and optionally types `PICKUP`.
-3. The bot safely checks public DoorDash metadata when available, creates a private ticket, pings the configured Manual Chef role, and posts a clickable group-cart link.
-4. **PICKUP** or **DELIVERY** appears in large text at the top of the chef summary.
-5. The chef claims the ticket, sends payment, and posts order updates.
+1. Customer presses **Place Order**, then chooses **🛍️ Pickup** or **🚗 Delivery**.
+2. **Pickup** asks for the DoorDash group-cart link, pickup store address, and **$30+ final total after taxes and fees**.
+3. **Delivery** asks for the group-cart link, **$30+ final total after taxes and fees**, full delivery address, and an optional Dasher note.
+4. The bot safely checks public DoorDash metadata when available, creates a private ticket, pings the configured Manual Chef role, and posts a clickable group-cart link.
+5. **PICKUP** or **DELIVERY** appears in large text at the top of the chef summary.
+6. The chef claims the ticket, sends payment, and posts order updates.
 
 DoorDash may hide live cart data behind a login or JavaScript. That never blocks ticket creation: the customer-entered final total remains visible and the chef gets a one-click cart link. Any publicly detected subtotal is shown only as a pre-tax reference. The bot never asks for or stores DoorDash credentials.
 
